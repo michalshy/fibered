@@ -59,30 +59,29 @@ private:
 };
 
 /// PUBLIC FUNCTIONS
-inline Fibered::Fibered()
-{
+inline Fibered::Fibered() {
     threadCount = GetCoreCount();
+
+    //TODO: Figure out thread affinity
+    
     workerThreads = new std::thread[threadCount];
     for (uint32_t i = 0; i < threadCount; ++i) {
         workerThreads[i] = std::thread(&Fibered::WorkerLoop, this, i);
     }
 }
 
-inline void Fibered::KickJob()
-{
+inline void Fibered::KickJob() {
 
 }
 
-inline Fibered::~Fibered()
-{
+inline Fibered::~Fibered() {
     for (uint32_t i = 0; i < threadCount; ++i) {
         workerThreads[i].join();
     }
     delete [] workerThreads;
 }
 /// PROTECTED FUNCTIONS
-inline void Fibered::WorkerLoop(uint32_t i)
-{
+inline void Fibered::WorkerLoop(uint32_t i) {
     while(true)
     {
         printf("Running core %d\n", i);
@@ -91,13 +90,12 @@ inline void Fibered::WorkerLoop(uint32_t i)
     }
 }
 /// PRIVATE FUNCTIONS
-inline uint32_t Fibered::GetCoreCount()
-{
+inline uint32_t Fibered::GetCoreCount() {
     //Try C++11
     //may return 0 when not able to detect
     uint32_t processor_count = std::thread::hardware_concurrency();
-    if(processor_count == 0)
-    {
+    if (processor_count != 0) return processor_count;
+    else {
         //Try different methods
         #if defined (_WIN64)
             SYSTEM_INFO sysinfo;

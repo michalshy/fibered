@@ -12,5 +12,6 @@
 
  int main()
  {
-
+    Fibered fibered;
+    printf("Program should not exit ever");
  }
