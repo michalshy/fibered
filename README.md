@@ -8,7 +8,7 @@ This project is a lightweight, header-only fibered-based job system in C++, insp
 - **Header-only**: The entire implementation can be included as a single `.hpp` file for simplicity.
 - **CMake integration**: Easily integrates into your project via CMake.
 - **Catch2 testing**: Unit tests are written with Catch2 for easy verification and validation of the system.
-- **Modular and flexible**: Can be used as a submodule, a standalone library, or just included directly as a header in your project.
+- **Modular and flexible**: Can be included directly as a header in your project.
 
 ## Requirements
 
