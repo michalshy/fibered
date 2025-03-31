@@ -33,6 +33,27 @@ struct AtomicCounter;
 /// ENUMS DECL SPACE ///
 enum class Priority;
 
+/// STRUCT DEF SPACE ///
+struct Job {
+    void (*entry)(void*);
+    Priority priority;
+    void* param;
+    AtomicCounter* counter;
+};
+struct AtomicCounter {
+    std::atomic<uint32_t> counter;
+    AtomicCounter() : counter(0) {}
+    AtomicCounter(uint32_t initial) : counter(initial) {}
+};
+/// ENUM DEF SPACE ///
+enum class Priority
+{
+    LOW,
+    MEDIUM,
+    HIGH,
+    CRITICAL
+};
+
 /**
  * @brief FiberedConfig is provided for simple overview for the most imporant
  * internal configuration tweaks like nr of fibers, size etc.
@@ -48,10 +69,16 @@ class Fibered {
     std::thread* workerThreads;
     uint32_t threadCount;
     std::priority_queue<Job, std::vector<Job>, std::greater<Priority>> jobQueue;
+    std::priority_queue<Job, std::vector<Job>, std::greater<Priority>> waitList;
 public:
     Fibered();
-    void KickJob();
+    void KickJob(Job job);
     ~Fibered();
+
+    std::thread* GetThreads() { return workerThreads; }
+    uint32_t GetThreadCount() { return threadCount; }
+    std::priority_queue<Job, std::vector<Job>, std::greater<Priority>> GetJobQueue() { return jobQueue; }
+    std::priority_queue<Job, std::vector<Job>, std::greater<Priority>> GetWaitList() { return waitList; };
 protected:
     void WorkerLoop(uint32_t i);
 private:
@@ -62,16 +89,26 @@ private:
 inline Fibered::Fibered() {
     threadCount = GetCoreCount();
 
+    workerThreads = new std::thread[threadCount];
     //TODO: Figure out thread affinity
     
-    workerThreads = new std::thread[threadCount];
     for (uint32_t i = 0; i < threadCount; ++i) {
         workerThreads[i] = std::thread(&Fibered::WorkerLoop, this, i);
     }
 }
 
-inline void Fibered::KickJob() {
-
+inline void Fibered::KickJob(Job job) {
+    job.entry(job.param);
+    if(job.counter->counter > 0)
+    {
+        job.counter->counter--;
+    }
+    while(job.counter->counter > 0)
+    {
+        continue;
+    }
+    printf("exiting job");
+    return;
 }
 
 inline Fibered::~Fibered() {
@@ -84,9 +121,11 @@ inline Fibered::~Fibered() {
 inline void Fibered::WorkerLoop(uint32_t i) {
     while(true)
     {
-        printf("Running core %d\n", i);
-        //sleep
-        std::this_thread::sleep_for(std::chrono::milliseconds(900));
+        if(jobQueue.empty())
+        {
+            //nothing new to do
+            continue;
+        }
     }
 }
 /// PRIVATE FUNCTIONS
@@ -131,22 +170,3 @@ inline uint32_t Fibered::GetCoreCount() {
     }
     return 1;
 }
-/// STRUCT DEF SPACE ///
-struct Job {
-    void (*entry)(void*);
-    Priority priority;
-    void* params[];
-};
-struct AtomicCounter {
-    std::atomic<uint32_t> counter;
-    AtomicCounter() : counter(0) {}
-    AtomicCounter(uint32_t initial) : counter(initial) {}
-};
-/// ENUM DEF SPACE ///
-enum class Priority
-{
-    LOW,
-    MEDIUM,
-    HIGH,
-    CRITICAL
-};
