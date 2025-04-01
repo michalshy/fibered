@@ -22,6 +22,10 @@
 #include <cstdio>
 #include <queue>
 #include <Windows.h>
+#include <winnt.h>
+
+//Help classes
+class SpinLock;
 
 /**
  * @brief FiberedConfig is provided for simple overview for the most imporant
@@ -116,3 +120,23 @@ inline uint32_t Fibered::GetCoreCount() {
     if(processor_count == 0) return 1; 
     return processor_count;
 }
+
+
+//Help classes
+class SpinLock {
+    std::atomic<bool> lock = false;
+public:
+    void Acquire() {
+        while(true) {
+            while(lock) {
+                _mm_pause();
+            }
+            //exit if state change
+            if(!lock.exchange(true))
+                break;
+        }
+    }
+    void Release() {
+        lock.store(false);
+    }
+};
