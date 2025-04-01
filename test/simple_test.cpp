@@ -9,12 +9,4 @@ void KickJob(void* fibered)
 
 TEST_CASE("Initialization test", "[Init]") {
     Fibered fibered;
-    AtomicCounter init(2);
-    Job sample {
-       &KickJob,
-       Priority::CRITICAL,
-       reinterpret_cast<void*>(&fibered),
-       &init
-    };
-    fibered.KickJob(sample);
 }

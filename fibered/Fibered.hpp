@@ -21,38 +21,7 @@
 #include <thread>
 #include <cstdio>
 #include <queue>
-
-//TODO: Check headers for different platform check
-#ifdef _WIN64
-    #include <Windows.h>
-#endif
-
-/// STRUCTS DECL SPACE ///
-struct Job;
-struct AtomicCounter;
-/// ENUMS DECL SPACE ///
-enum class Priority;
-
-/// STRUCT DEF SPACE ///
-struct Job {
-    void (*entry)(void*);
-    Priority priority;
-    void* param;
-    AtomicCounter* counter;
-};
-struct AtomicCounter {
-    std::atomic<uint32_t> counter;
-    AtomicCounter() : counter(0) {}
-    AtomicCounter(uint32_t initial) : counter(initial) {}
-};
-/// ENUM DEF SPACE ///
-enum class Priority
-{
-    LOW,
-    MEDIUM,
-    HIGH,
-    CRITICAL
-};
+#include <Windows.h>
 
 /**
  * @brief FiberedConfig is provided for simple overview for the most imporant
@@ -66,11 +35,23 @@ struct FiberedConfig {
  * @brief Main class of fibered, it is Job System per se
  */
 class Fibered {
-    std::thread* workerThreads;
-    uint32_t threadCount;
-    std::priority_queue<Job, std::vector<Job>, std::greater<Priority>> jobQueue;
-    std::priority_queue<Job, std::vector<Job>, std::greater<Priority>> waitList;
 public:
+    enum class Priority
+    {
+        LOW, MEDIUM, HIGH, CRITICAL
+    };
+    struct AtomicCounter {
+        std::atomic<uint32_t> counter;
+        AtomicCounter() : counter(0) {}
+        AtomicCounter(uint32_t initial) : counter(initial) {}
+    };
+    struct Job {
+        void (*entry)(void*);
+        Priority priority;
+        void* param;
+        AtomicCounter* counter;
+    };
+
     Fibered();
     void KickJob(Job job);
     ~Fibered();
@@ -82,16 +63,17 @@ public:
 protected:
     void WorkerLoop(uint32_t i);
 private:
+    std::thread* workerThreads;
+    uint32_t threadCount;
+    std::priority_queue<Job, std::vector<Job>, std::greater<Priority>> jobQueue;
+    std::priority_queue<Job, std::vector<Job>, std::greater<Priority>> waitList;
     uint32_t GetCoreCount();
 };
 
 /// PUBLIC FUNCTIONS
 inline Fibered::Fibered() {
     threadCount = GetCoreCount();
-
     workerThreads = new std::thread[threadCount];
-    //TODO: Figure out thread affinity
-    
     for (uint32_t i = 0; i < threadCount; ++i) {
         workerThreads[i] = std::thread(&Fibered::WorkerLoop, this, i);
     }
@@ -130,43 +112,7 @@ inline void Fibered::WorkerLoop(uint32_t i) {
 }
 /// PRIVATE FUNCTIONS
 inline uint32_t Fibered::GetCoreCount() {
-    //Try C++11
-    //may return 0 when not able to detect
     uint32_t processor_count = std::thread::hardware_concurrency();
-    if (processor_count != 0) return processor_count;
-    else {
-        //Try different methods
-        #if defined (_WIN64)
-            SYSTEM_INFO sysinfo;
-            GetSystemInfo(&sysinfo);
-            return sysinfo.dwNumberOfProcessors;
-        #elif defined (_WIN32)
-            SYSTEM_INFO sysinfo;
-            GetSystemInfo(&sysinfo);
-            return sysinfo.dwNumberOfProcessors;
-        #elif defined (__METAL__)
-            int mib[4];
-            int numCPU;
-            std::size_t len = sizeof(numCPU); 
-            
-            /* set the mib for hw.ncpu */
-            mib[0] = CTL_HW;
-            mib[1] = HW_AVAILCPU;  // alternatively, try HW_NCPU;
-            
-            /* get the number of CPUs from the system */
-            sysctl(mib, 2, &numCPU, &len, NULL, 0);
-            
-            if (numCPU < 1) 
-            {
-                mib[1] = HW_NCPU;
-                sysctl(mib, 2, &numCPU, &len, NULL, 0);
-                if (numCPU < 1)
-                    numCPU = 1;
-            }
-            return numCPU;
-        #elif defined (__linux__)
-            return sysconf(_SC_NPROCESSORS_ONLN);
-        #endif
-    }
-    return 1;
+    if(processor_count == 0) return 1; 
+    return processor_count;
 }
