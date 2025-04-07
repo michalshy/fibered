@@ -16,47 +16,36 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#include <cstdint>
-#include <atomic>
-#include <thread>
-#include <cstdio>
+#ifndef FIBERED_HPP
+#define FIBERED_HPP
+
 #include <queue>
+#include <cstdint>
+#include <thread>
 #include <Windows.h>
+#include <winbase.h>
 #include <winnt.h>
 
-//Help classes
-class SpinLock;
+#include "SpinLock.hpp"
+#include "FiberedTypes.hpp"
 
 /**
  * @brief FiberedConfig is provided for simple overview for the most imporant
  * internal configuration tweaks like nr of fibers, size etc.
  */
-struct FiberedConfig {
-
-};
+ namespace{
+     struct FiberedConfig {
+     
+     } fibered_config; //default config
+ }
 
 /**
  * @brief Main class of fibered, it is Job System per se
  */
 class Fibered {
 public:
-    enum class Priority
-    {
-        LOW, MEDIUM, HIGH, CRITICAL
-    };
-    struct AtomicCounter {
-        std::atomic<uint32_t> counter;
-        AtomicCounter() : counter(0) {}
-        AtomicCounter(uint32_t initial) : counter(initial) {}
-    };
-    struct Job {
-        void (*entry)(void*);
-        Priority priority;
-        void* param;
-        AtomicCounter* counter;
-    };
-
     Fibered();
+    void Init();
     void KickJob(Job job);
     ~Fibered();
 
@@ -67,6 +56,7 @@ public:
 protected:
     void WorkerLoop(uint32_t i);
 private:
+    FiberedConfig config;
     std::thread* workerThreads;
     uint32_t threadCount;
     std::priority_queue<Job, std::vector<Job>, std::greater<Priority>> jobQueue;
@@ -74,69 +64,6 @@ private:
     uint32_t GetCoreCount();
 };
 
-/// PUBLIC FUNCTIONS
-inline Fibered::Fibered() {
-    threadCount = GetCoreCount();
-    workerThreads = new std::thread[threadCount];
-    for (uint32_t i = 0; i < threadCount; ++i) {
-        workerThreads[i] = std::thread(&Fibered::WorkerLoop, this, i);
-    }
-}
-
-inline void Fibered::KickJob(Job job) {
-    job.entry(job.param);
-    if(job.counter->counter > 0)
-    {
-        job.counter->counter--;
-    }
-    while(job.counter->counter > 0)
-    {
-        continue;
-    }
-    printf("exiting job");
-    return;
-}
-
-inline Fibered::~Fibered() {
-    for (uint32_t i = 0; i < threadCount; ++i) {
-        workerThreads[i].join();
-    }
-    delete [] workerThreads;
-}
-/// PROTECTED FUNCTIONS
-inline void Fibered::WorkerLoop(uint32_t i) {
-    while(true)
-    {
-        if(jobQueue.empty())
-        {
-            //nothing new to do
-            continue;
-        }
-    }
-}
-/// PRIVATE FUNCTIONS
-inline uint32_t Fibered::GetCoreCount() {
-    uint32_t processor_count = std::thread::hardware_concurrency();
-    if(processor_count == 0) return 1; 
-    return processor_count;
-}
 
 
-//Help classes
-class SpinLock {
-    std::atomic<bool> lock = false;
-public:
-    void Acquire() {
-        while(true) {
-            while(lock) {
-                _mm_pause();
-            }
-            //exit if state change
-            if(!lock.exchange(true))
-                break;
-        }
-    }
-    void Release() {
-        lock.store(false);
-    }
-};
+#endif // FIBERED_HPP

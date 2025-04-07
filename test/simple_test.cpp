@@ -9,4 +9,5 @@ void KickJob(void* fibered)
 
 TEST_CASE("Initialization test", "[Init]") {
     Fibered fibered;
+    fibered.Init();
 }
